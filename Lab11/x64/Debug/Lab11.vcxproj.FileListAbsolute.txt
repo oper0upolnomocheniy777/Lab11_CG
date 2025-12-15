@@ -1,3 +1,0 @@
-C:\Users\brosl\OneDrive\Изображения\Рабочий стол\Study\Lab11_CG\Lab11\x64\Debug\Lab11.vcxproj.CopyComplete
-C:\Users\brosl\OneDrive\Изображения\Рабочий стол\Study\Lab11_CG\Lab11\x64\Debug\Lab11.exe
-C:\Users\brosl\OneDrive\Изображения\Рабочий стол\Study\Lab11_CG\Lab11\x64\Debug\glew32d.dll
