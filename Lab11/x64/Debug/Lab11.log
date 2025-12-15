@@ -1,0 +1,6 @@
+﻿  Lab11.cpp
+C:\Users\brosl\OneDrive\Изображения\Рабочий стол\Study\Lab11_CG\Lab11\Lab11.cpp(184,20): warning C4244: инициализация: преобразование "double" в "float", возможна потеря данных
+C:\Users\brosl\OneDrive\Изображения\Рабочий стол\Study\Lab11_CG\Lab11\Lab11.cpp(195,27): warning C4244: инициализация: преобразование "double" в "float", возможна потеря данных
+  Lab11.vcxproj -> C:\Users\brosl\OneDrive\Изображения\Рабочий стол\Study\Lab11_CG\Lab11\x64\Debug\Lab11.exe
+  "pwsh.exe" не является внутренней или внешней
+  командой, исполняемой программой или пакетным файлом.
