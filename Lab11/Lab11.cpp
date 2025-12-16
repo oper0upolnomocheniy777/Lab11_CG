@@ -5,18 +5,24 @@
 
 const char* vertexShaderSource = R"(
     #version 330 core
-    layout (location = 0) in vec2 aPos;
+    layout (location = 0) in vec2 aPos;     // позиция вершины
+    layout (location = 1) in vec3 aColor;   // цвет вершины (НОВОЕ!)
+    
+    out vec3 vertexColor;  // передаем цвет во фрагментный шейдер
+    
     void main() {
         gl_Position = vec4(aPos.x, aPos.y, 0.0, 1.0);
+        vertexColor = aColor;  // передаем цвет вершины
     }
 )";
 
 const char* fragmentShaderSource = R"(
     #version 330 core
+    in vec3 vertexColor;      // получаем интерполированный цвет
     out vec4 FragColor;
-    uniform vec4 shapeColor; // uniform-переменная для цвета (плоское закрашивание)
+    
     void main() {
-        FragColor = shapeColor; // все пиксели фигуры получат одинаковый цвет
+        FragColor = vec4(vertexColor, 1.0);  // ГРАДИЕНТНОЕ ЗАКРАШИВАНИЕ
     }
 )";
 
@@ -63,24 +69,32 @@ unsigned int createShaderProgram() {
     return shaderProgram;
 }
 
-// четырехугольник
-float* createQuadVertices(int& vertexCount) {
-    static float vertices[] = {
-        -0.5f,  0.5f,  // левый верхний
-        -0.5f, -0.5f,  // левый нижний
-         0.5f, -0.5f,  // правый нижний
+// Структура для хранения вершин с позицией и цветом
+struct Vertex {
+    float x, y;       // позиция
+    float r, g, b;    // цвет
+};
 
-         -0.5f,  0.5f,  // левый верхний
-          0.5f, -0.5f,  // правый нижний
-          0.5f,  0.5f   // правый верхний
+// четырехугольник с разными цветами для вершин
+Vertex* createQuadVertices(int& vertexCount) {
+    static Vertex vertices[] = {
+        // левый верхний треугольник
+        {-0.5f,  0.5f,   1.0f, 0.0f, 0.0f},  // красный
+        {-0.5f, -0.5f,   0.0f, 1.0f, 0.0f},  // зеленый
+        { 0.5f, -0.5f,   0.0f, 0.0f, 1.0f},  // синий
+
+        // правый верхний треугольник
+        {-0.5f,  0.5f,   1.0f, 0.0f, 0.0f},  // красный
+        { 0.5f, -0.5f,   0.0f, 0.0f, 1.0f},  // синий
+        { 0.5f,  0.5f,   1.0f, 1.0f, 0.0f}   // желтый
     };
     vertexCount = 6;
     return vertices;
 }
 
-// веер
-float* createFanVertices(int& vertexCount) {
-    static float vertices[8 * 3 * 2];
+// веер с цветовым градиентом
+Vertex* createFanVertices(int& vertexCount) {
+    static Vertex vertices[8 * 3];
     float centerX = 0.0f;
     float centerY = 0.0f;
     float radius = 0.7f;
@@ -90,25 +104,34 @@ float* createFanVertices(int& vertexCount) {
         float angle1 = 3.14159f * 2.0f * i / triangles;
         float angle2 = 3.14159f * 2.0f * (i + 1) / triangles;
 
-        // Центральная вершина 
-        vertices[i * 6] = centerX;
-        vertices[i * 6 + 1] = centerY;
+        // Центральная вершина - белый
+        vertices[i * 3].x = centerX;
+        vertices[i * 3].y = centerY;
+        vertices[i * 3].r = 1.0f;
+        vertices[i * 3].g = 1.0f;
+        vertices[i * 3].b = 1.0f;
 
-        // Первая точка на окружности
-        vertices[i * 6 + 2] = centerX + radius * cos(angle1);
-        vertices[i * 6 + 3] = centerY + radius * sin(angle1);
+        // Первая точка на окружности - меняется по цвету
+        vertices[i * 3 + 1].x = centerX + radius * cos(angle1);
+        vertices[i * 3 + 1].y = centerY + radius * sin(angle1);
+        vertices[i * 3 + 1].r = (float)i / triangles;           // R меняется
+        vertices[i * 3 + 1].g = 1.0f - (float)i / triangles;    // G меняется
+        vertices[i * 3 + 1].b = 0.5f;
 
-        // Вторая точка на окружности
-        vertices[i * 6 + 4] = centerX + radius * cos(angle2);
-        vertices[i * 6 + 5] = centerY + radius * sin(angle2);
+        // Вторая точка на окружности - меняется по цвету
+        vertices[i * 3 + 2].x = centerX + radius * cos(angle2);
+        vertices[i * 3 + 2].y = centerY + radius * sin(angle2);
+        vertices[i * 3 + 2].r = (float)(i + 1) / triangles;     // R меняется
+        vertices[i * 3 + 2].g = 1.0f - (float)(i + 1) / triangles; // G меняется
+        vertices[i * 3 + 2].b = 0.5f;
     }
     vertexCount = triangles * 3;
     return vertices;
 }
 
-// пятиугольник
-float* createPentagonVertices(int& vertexCount) {
-    static float vertices[5 * 3 * 2];
+// пятиугольник с цветовым градиентом
+Vertex* createPentagonVertices(int& vertexCount) {
+    static Vertex vertices[5 * 3];
     float centerX = 0.0f;
     float centerY = 0.0f;
     float radius = 0.5f;
@@ -118,38 +141,48 @@ float* createPentagonVertices(int& vertexCount) {
         float angle1 = 3.14159f * 2.0f * i / triangles;
         float angle2 = 3.14159f * 2.0f * (i + 1) / triangles;
 
-        // Центральная 
-        vertices[i * 6] = centerX;
-        vertices[i * 6 + 1] = centerY;
+        // Центральная вершина - фиолетовый
+        vertices[i * 3].x = centerX;
+        vertices[i * 3].y = centerY;
+        vertices[i * 3].r = 0.8f;
+        vertices[i * 3].g = 0.2f;
+        vertices[i * 3].b = 0.8f;
 
-        // Первая точка
-        vertices[i * 6 + 2] = centerX + radius * cos(angle1);
-        vertices[i * 6 + 3] = centerY + radius * sin(angle1);
+        // Первая точка - теплый цвет
+        vertices[i * 3 + 1].x = centerX + radius * cos(angle1);
+        vertices[i * 3 + 1].y = centerY + radius * sin(angle1);
+        vertices[i * 3 + 1].r = 1.0f;
+        vertices[i * 3 + 1].g = 0.5f + 0.5f * sin(angle1);
+        vertices[i * 3 + 1].b = 0.2f;
 
-        // Вторая точка
-        vertices[i * 6 + 4] = centerX + radius * cos(angle2);
-        vertices[i * 6 + 5] = centerY + radius * sin(angle2);
+        // Вторая точка - холодный цвет
+        vertices[i * 3 + 2].x = centerX + radius * cos(angle2);
+        vertices[i * 3 + 2].y = centerY + radius * sin(angle2);
+        vertices[i * 3 + 2].r = 0.2f;
+        vertices[i * 3 + 2].g = 0.7f;
+        vertices[i * 3 + 2].b = 0.9f + 0.1f * cos(angle2);
     }
     vertexCount = triangles * 3;
     return vertices;
 }
 
-void drawShape(float* vertices, int vertexCount, unsigned int shaderProgram, float r, float g, float b) {
+void drawShape(Vertex* vertices, int vertexCount) {
     unsigned int VBO, VAO;
     glGenVertexArrays(1, &VAO);
     glGenBuffers(1, &VBO);
 
     glBindVertexArray(VAO);
     glBindBuffer(GL_ARRAY_BUFFER, VBO);
-    glBufferData(GL_ARRAY_BUFFER, vertexCount * 2 * sizeof(float), vertices, GL_STATIC_DRAW);
+    glBufferData(GL_ARRAY_BUFFER, vertexCount * sizeof(Vertex), vertices, GL_STATIC_DRAW);
 
-    glVertexAttribPointer(0, 2, GL_FLOAT, GL_FALSE, 2 * sizeof(float), (void*)0);
+    // Устанавливаем атрибуты:
+    // 0 - позиция (2 float)
+    glVertexAttribPointer(0, 2, GL_FLOAT, GL_FALSE, 5 * sizeof(float), (void*)0);
     glEnableVertexAttribArray(0);
 
-    // Получаем location uniform-переменной для цвета
-    int colorLocation = glGetUniformLocation(shaderProgram, "shapeColor");
-    // Устанавливаем цвет для плоского закрашивания
-    glUniform4f(colorLocation, r, g, b, 1.0f); // alpha = 1.0
+    // 1 - цвет (3 float, смещение на 2 float от начала)
+    glVertexAttribPointer(1, 3, GL_FLOAT, GL_FALSE, 5 * sizeof(float), (void*)(2 * sizeof(float)));
+    glEnableVertexAttribArray(1);
 
     glDrawArrays(GL_TRIANGLES, 0, vertexCount);
 
@@ -167,7 +200,7 @@ int main() {
     glfwWindowHint(GLFW_CONTEXT_VERSION_MINOR, 3);
     glfwWindowHint(GLFW_OPENGL_PROFILE, GLFW_OPENGL_CORE_PROFILE);
 
-    GLFWwindow* window = glfwCreateWindow(800, 600, "Three Shapes - Flat Shading with Uniforms", NULL, NULL);
+    GLFWwindow* window = glfwCreateWindow(800, 600, "Three Shapes - Gradient Shading", NULL, NULL);
     if (!window) {
         std::cout << "Failed to create GLFW window" << std::endl;
         glfwTerminate();
@@ -192,17 +225,9 @@ int main() {
     float lastTime = glfwGetTime();
 
     const char* shapeNames[] = {
-        "QUADRILATERAL (2 triangles) - Flat shading: BLUE",
-        "FAN (8 triangles) - Flat shading: GREEN",
-        "PENTAGON (5 triangles) - Flat shading: RED"
-    };
-
-    // Цвета для плоского закрашивания каждой фигуры
-    // Каждая фигура имеет свой равномерный цвет
-    float shapeColors[3][3] = {
-        {0.2f, 0.4f, 0.9f},  // Синий для четырехугольника
-        {0.3f, 0.8f, 0.4f},  // Зеленый для веера
-        {0.9f, 0.3f, 0.3f}   // Красный для пятиугольника
+        "QUADRILATERAL - Gradient: Red/Green/Blue/Yellow",
+        "FAN - Gradient: White to Color Wheel",
+        "PENTAGON - Gradient: Purple/Warm/Cool"
     };
 
     while (!glfwWindowShouldClose(window)) {
@@ -218,7 +243,7 @@ int main() {
         glUseProgram(shaderProgram);
 
         int vertexCount;
-        float* vertices = nullptr;
+        Vertex* vertices = nullptr;
 
         switch (shapeType) {
         case 0:
@@ -233,11 +258,7 @@ int main() {
         }
 
         if (vertices != nullptr) {
-            // Передаем цвет для текущей фигуры через uniform
-            drawShape(vertices, vertexCount, shaderProgram,
-                shapeColors[shapeType][0],
-                shapeColors[shapeType][1],
-                shapeColors[shapeType][2]);
+            drawShape(vertices, vertexCount);
         }
 
         glfwSwapBuffers(window);
