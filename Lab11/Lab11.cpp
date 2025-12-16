@@ -4,6 +4,7 @@
 #include <iostream>
 
 const char* vertexShaderSource = R"(
+    #version 330 core
     layout (location = 0) in vec2 aPos;
     void main() {
         gl_Position = vec4(aPos.x, aPos.y, 0.0, 1.0);
@@ -11,9 +12,11 @@ const char* vertexShaderSource = R"(
 )";
 
 const char* fragmentShaderSource = R"(
+    #version 330 core
     out vec4 FragColor;
+    uniform vec4 shapeColor; // uniform-переменная для цвета (плоское закрашивание)
     void main() {
-        FragColor = vec4(1.0, 0.2, 1.0, 1.0); 
+        FragColor = shapeColor; // все пиксели фигуры получат одинаковый цвет
     }
 )";
 
@@ -71,13 +74,13 @@ float* createQuadVertices(int& vertexCount) {
           0.5f, -0.5f,  // правый нижний
           0.5f,  0.5f   // правый верхний
     };
-    vertexCount = 6; 
+    vertexCount = 6;
     return vertices;
 }
 
 // веер
 float* createFanVertices(int& vertexCount) {
-    static float vertices[8 * 3 * 2]; 
+    static float vertices[8 * 3 * 2];
     float centerX = 0.0f;
     float centerY = 0.0f;
     float radius = 0.7f;
@@ -99,13 +102,13 @@ float* createFanVertices(int& vertexCount) {
         vertices[i * 6 + 4] = centerX + radius * cos(angle2);
         vertices[i * 6 + 5] = centerY + radius * sin(angle2);
     }
-    vertexCount = triangles * 3; 
+    vertexCount = triangles * 3;
     return vertices;
 }
 
 // пятиугольник
 float* createPentagonVertices(int& vertexCount) {
-    static float vertices[5 * 3 * 2]; 
+    static float vertices[5 * 3 * 2];
     float centerX = 0.0f;
     float centerY = 0.0f;
     float radius = 0.5f;
@@ -127,11 +130,11 @@ float* createPentagonVertices(int& vertexCount) {
         vertices[i * 6 + 4] = centerX + radius * cos(angle2);
         vertices[i * 6 + 5] = centerY + radius * sin(angle2);
     }
-    vertexCount = triangles * 3; 
+    vertexCount = triangles * 3;
     return vertices;
 }
 
-void drawShape(float* vertices, int vertexCount) {
+void drawShape(float* vertices, int vertexCount, unsigned int shaderProgram, float r, float g, float b) {
     unsigned int VBO, VAO;
     glGenVertexArrays(1, &VAO);
     glGenBuffers(1, &VBO);
@@ -142,6 +145,11 @@ void drawShape(float* vertices, int vertexCount) {
 
     glVertexAttribPointer(0, 2, GL_FLOAT, GL_FALSE, 2 * sizeof(float), (void*)0);
     glEnableVertexAttribArray(0);
+
+    // Получаем location uniform-переменной для цвета
+    int colorLocation = glGetUniformLocation(shaderProgram, "shapeColor");
+    // Устанавливаем цвет для плоского закрашивания
+    glUniform4f(colorLocation, r, g, b, 1.0f); // alpha = 1.0
 
     glDrawArrays(GL_TRIANGLES, 0, vertexCount);
 
@@ -159,7 +167,7 @@ int main() {
     glfwWindowHint(GLFW_CONTEXT_VERSION_MINOR, 3);
     glfwWindowHint(GLFW_OPENGL_PROFILE, GLFW_OPENGL_CORE_PROFILE);
 
-    GLFWwindow* window = glfwCreateWindow(800, 600, "Three Shapes - Flat Shading", NULL, NULL);
+    GLFWwindow* window = glfwCreateWindow(800, 600, "Three Shapes - Flat Shading with Uniforms", NULL, NULL);
     if (!window) {
         std::cout << "Failed to create GLFW window" << std::endl;
         glfwTerminate();
@@ -180,13 +188,21 @@ int main() {
 
     glClearColor(0.1f, 0.1f, 0.1f, 1.0f);
 
-    int shapeType = 0; 
+    int shapeType = 0;
     float lastTime = glfwGetTime();
 
     const char* shapeNames[] = {
-        "QUADRILATERAL (2 triangles)",
-        "FAN (8 triangles)",
-        "PENTAGON (5 triangles)"
+        "QUADRILATERAL (2 triangles) - Flat shading: BLUE",
+        "FAN (8 triangles) - Flat shading: GREEN",
+        "PENTAGON (5 triangles) - Flat shading: RED"
+    };
+
+    // Цвета для плоского закрашивания каждой фигуры
+    // Каждая фигура имеет свой равномерный цвет
+    float shapeColors[3][3] = {
+        {0.2f, 0.4f, 0.9f},  // Синий для четырехугольника
+        {0.3f, 0.8f, 0.4f},  // Зеленый для веера
+        {0.9f, 0.3f, 0.3f}   // Красный для пятиугольника
     };
 
     while (!glfwWindowShouldClose(window)) {
@@ -196,28 +212,32 @@ int main() {
         if (currentTime - lastTime > 3.0f) {
             shapeType = (shapeType + 1) % 3;
             lastTime = currentTime;
-            std::cout << "Current shape: " << shapeNames[shapeType] << std::endl;
+            std::cout << "Switching to: " << shapeNames[shapeType] << std::endl;
         }
 
         glUseProgram(shaderProgram);
 
         int vertexCount;
-        float* vertices = nullptr; 
+        float* vertices = nullptr;
 
         switch (shapeType) {
-        case 0: 
+        case 0:
             vertices = createQuadVertices(vertexCount);
             break;
-        case 1: 
+        case 1:
             vertices = createFanVertices(vertexCount);
             break;
-        case 2: 
+        case 2:
             vertices = createPentagonVertices(vertexCount);
             break;
         }
 
         if (vertices != nullptr) {
-            drawShape(vertices, vertexCount);
+            // Передаем цвет для текущей фигуры через uniform
+            drawShape(vertices, vertexCount, shaderProgram,
+                shapeColors[shapeType][0],
+                shapeColors[shapeType][1],
+                shapeColors[shapeType][2]);
         }
 
         glfwSwapBuffers(window);
